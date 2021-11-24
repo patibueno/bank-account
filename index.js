@@ -17,6 +17,7 @@ function operation() {
           "Consultar Saldo",
           "Depositar",
           "Sacar",
+          "Transferir",
           "Sair",
         ],
       },
@@ -31,6 +32,8 @@ function operation() {
         deposit();
       } else if (action === "Sacar") {
         withdraw();
+      } else if (action === "Transferir") {
+        transfer();
       } else if (action === "Sair") {
         console.log(chalk.bgBlue.black("Obrigada por utilizar nosso banco!"));
         process.exit();
@@ -117,6 +120,7 @@ function deposit() {
       if (!checkAccount(accountName)) {
         return errorHandler();
       }
+
       inquirer
         .prompt([
           {
@@ -189,10 +193,58 @@ function withdraw() {
     })
     .catch((e) => console.log(e));
 }
+
+function transfer() {
+  inquirer
+    .prompt([
+      {
+        name: "accountNameDebit",
+        message: "Qual o nome da sua conta de débito?",
+      },
+    ])
+    .then((answer) => {
+      const accountNameDebit = answer["accountNameDebit"];
+      console.info(accountNameDebit);
+      if (!checkAccount(accountNameDebit)) {
+        return errorHandler();
+      }
+
+      inquirer
+        .prompt([
+          {
+            name: "accountNameCredit",
+            message: "Qual o nome da sua conta de crédito?",
+          },
+        ])
+        .then((answer) => {
+          const accountNameCredit = answer["accountNameCredit"];
+          console.info(accountNameCredit);
+          if (!checkAccount(accountNameCredit)) {
+            return errorHandler();
+          }
+          inquirer
+            .prompt([
+              {
+                name: "amountTransfer",
+                message: "Qual o valor que deseja depositar? ",
+              },
+            ])
+            .then((answer) => {
+              const amountTranfer = answer["amountTransfer"];
+              if (removeAmount(accountNameDebit, amountTranfer)) {
+                addAmount(accountNameCredit, amountTranfer);
+              }
+            })
+            .catch((e) => console.log(e));
+        })
+        .catch((e) => console.log(e));
+    })
+    .catch((e) => console.log(e));
+}
+
 function checkAccount(accountName) {
   if (!fs.existsSync(`accounts/${accountName}.json`)) {
     console.log(chalk.bgRed.black("Conta Inválida"));
-
     return false;
   }
   return true;
@@ -217,7 +269,11 @@ function addAmount(accountName, amount) {
     }
   );
 
-  console.log(chalk.green(`Deposito de R$${amount} depositado com sucesso!`));
+  console.log(
+    chalk.green(
+      `Deposito de R$${amount} da conta ${accountName} depositado com sucesso!`
+    )
+  );
   operation();
 }
 
@@ -226,12 +282,14 @@ function removeAmount(accountName, amount) {
   const isNumeric = isNaN(amount);
   if (!amount || amount <= 0 || isNumeric) {
     console.log(chalk.bgRed.black("Ocorreu um erro, tente novamente"));
-    return errorHandler();
+    return false, errorHandler();
   }
 
   if (amount > parseFloat(accountData.balance)) {
-    console.log(chalk.bgRed.black("Saldo insuficiente para realizar o saque"));
-    return errorHandler();
+    console.log(
+      chalk.bgRed.black("Saldo insuficiente para realizar a transação")
+    );
+    return false, errorHandler();
   }
 
   accountData.balance = parseFloat(accountData.balance) - parseFloat(amount);
@@ -244,8 +302,12 @@ function removeAmount(accountName, amount) {
     }
   );
 
-  console.log(chalk.green(`Retirada de R$${amount} realizada  com sucesso!`));
-  operation();
+  console.log(
+    chalk.green(
+      `Retirada de R$${amount} da conta ${accountName} realizada  com sucesso!`
+    )
+  );
+  return true;
 }
 
 function getAccount(accountName) {
